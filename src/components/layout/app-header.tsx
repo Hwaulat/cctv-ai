@@ -97,7 +97,9 @@ export function AppHeader({ onToggleSidebar }: { onToggleSidebar: () => void }) 
               return (
                 <DropdownMenuItem key={e.id} asChild>
                   <Link to="/events" className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{eventStatusLabel[e.type === "smoke" ? "unacknowledged" : "unacknowledged"] === "Unacknowledged" ? eventTypeLabel[e.type] : eventTypeLabel[e.type]} · {room?.name}</span>
+                    <span className="text-sm font-medium">
+                      {eventTypeLabel[e.type]} · {room?.name}
+                    </span>
                     <span className="font-mono text-[11px] text-muted-foreground">
                       {e.id} · {e.at}
                     </span>
