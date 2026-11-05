@@ -8,14 +8,17 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { AppHeader } from "@/components/layout/app-header";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
@@ -43,7 +46,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
@@ -78,14 +81,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "AI CCTV Monitoring Platform" },
+      { name: "description", content: "AI-powered CCTV monitoring: smoke detection, people counting, and floor-plan occupancy heatmap." },
+      { name: "author", content: "AI CCTV Monitoring Platform" },
+      { property: "og:title", content: "AI CCTV Monitoring Platform" },
+      { property: "og:description", content: "AI-powered CCTV monitoring: smoke detection, people counting, and floor-plan occupancy heatmap." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -117,11 +119,39 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Open on desktop, closed on mobile; follow viewport changes.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setSidebarOpen(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setSidebarOpen(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="flex min-h-screen w-full bg-background">
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-foreground/40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <AppSidebar open={sidebarOpen} />
+        <div
+          className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-200 ${
+            sidebarOpen ? "lg:ml-64" : ""
+          }`}
+        >
+          <AppHeader onToggleSidebar={() => setSidebarOpen((v) => !v)} />
+          <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 lg:px-8">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+      <Toaster position="bottom-right" richColors />
     </QueryClientProvider>
   );
 }
