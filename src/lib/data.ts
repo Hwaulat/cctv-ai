@@ -234,6 +234,14 @@ export const notificationRules: NotificationRule[] = [
   { type: "Camera offline", inApp: true, email: false, recipients: ["admin@cctv.io"] },
 ];
 
+export type AIModel = "people-counting" | "smoke-detection" | "crowd-capacity";
+
+export const aiModelLabels: Record<AIModel, string> = {
+  "people-counting": "People Counting",
+  "smoke-detection": "Smoke Detection",
+  "crowd-capacity": "Crowd / Capacity",
+};
+
 export interface Camera {
   id: string;
   name: string;
@@ -242,17 +250,18 @@ export interface Camera {
   resolution: string;
   status: CameraStatus;
   lastSeen: string;
+  model: AIModel;
 }
 
 export const cameras: Camera[] = [
-  { id: "LOBBY-CAM-01", name: "Lobby Cam 01", roomId: "main-lobby", rtsp: "rtsp://192.168.10.11:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:05" },
-  { id: "HALL-CAM-02", name: "Hallway Cam 02", roomId: "office-hallway", rtsp: "rtsp://192.168.10.12:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:04" },
-  { id: "MEET-CAM-03", name: "Meeting Cam 03", roomId: "meeting-3", rtsp: "rtsp://192.168.10.13:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:05" },
-  { id: "PROD-CAM-04", name: "Production Cam 04", roomId: "production", rtsp: "rtsp://192.168.10.14:554/stream1", resolution: "1080p H.265", status: "online", lastSeen: "10:42:03" },
-  { id: "PROD-CAM-05", name: "Production Cam 05", roomId: "production", rtsp: "rtsp://192.168.10.15:554/stream1", resolution: "720p H.264", status: "online", lastSeen: "10:42:05" },
-  { id: "WH-CAM-06", name: "Warehouse Cam 06", roomId: "warehouse-a", rtsp: "rtsp://192.168.10.16:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:04" },
-  { id: "DOCK-CAM-07", name: "Dock Cam 07", roomId: "loading-dock", rtsp: "rtsp://192.168.10.17:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:05" },
-  { id: "SRV-CAM-08", name: "Server Room Cam 08", roomId: "server-room", rtsp: "rtsp://192.168.10.18:554/stream1", resolution: "1080p H.264", status: "offline", lastSeen: "09:44:02" },
+  { id: "LOBBY-CAM-01", name: "Lobby Cam 01", roomId: "main-lobby", rtsp: "rtsp://192.168.10.11:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:05", model: "people-counting" },
+  { id: "HALL-CAM-02", name: "Hallway Cam 02", roomId: "office-hallway", rtsp: "rtsp://192.168.10.12:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:04", model: "people-counting" },
+  { id: "MEET-CAM-03", name: "Meeting Cam 03", roomId: "meeting-3", rtsp: "rtsp://192.168.10.13:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:05", model: "smoke-detection" },
+  { id: "PROD-CAM-04", name: "Production Cam 04", roomId: "production", rtsp: "rtsp://192.168.10.14:554/stream1", resolution: "1080p H.265", status: "online", lastSeen: "10:42:03", model: "smoke-detection" },
+  { id: "PROD-CAM-05", name: "Production Cam 05", roomId: "production", rtsp: "rtsp://192.168.10.15:554/stream1", resolution: "720p H.264", status: "online", lastSeen: "10:42:05", model: "crowd-capacity" },
+  { id: "WH-CAM-06", name: "Warehouse Cam 06", roomId: "warehouse-a", rtsp: "rtsp://192.168.10.16:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:04", model: "smoke-detection" },
+  { id: "DOCK-CAM-07", name: "Dock Cam 07", roomId: "loading-dock", rtsp: "rtsp://192.168.10.17:554/stream1", resolution: "1080p H.264", status: "online", lastSeen: "10:42:05", model: "people-counting" },
+  { id: "SRV-CAM-08", name: "Server Room Cam 08", roomId: "server-room", rtsp: "rtsp://192.168.10.18:554/stream1", resolution: "1080p H.264", status: "offline", lastSeen: "09:44:02", model: "smoke-detection" },
 ];
 
 export const occupancyByHour = [
@@ -300,3 +309,4 @@ export const eventTypeLabel: Record<EventType, string> = {
 export const totalHeadcount = () => rooms.reduce((sum, r) => sum + r.headcount, 0);
 export const unacknowledgedCount = () => events.filter((e) => e.status === "unacknowledged").length;
 export const roomById = (id: string) => rooms.find((r) => r.id === id);
+export const cameraById = (id: string) => cameras.find((c) => c.id === id);

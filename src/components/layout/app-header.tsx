@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, ChevronDown, PanelLeft, Settings, UsersRound } from "lucide-react";
+import { Bell, ChevronDown, PanelLeft, Settings } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -49,7 +49,13 @@ function LiveClock() {
   );
 }
 
-export function AppHeader({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export function AppHeader({
+  sidebarOpen,
+  onToggleSidebar,
+}: {
+  sidebarOpen?: boolean;
+  onToggleSidebar: () => void;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const unread = unacknowledgedCount();
   const latest = [...events]
@@ -62,7 +68,8 @@ export function AppHeader({ onToggleSidebar }: { onToggleSidebar: () => void }) 
       <button
         type="button"
         onClick={onToggleSidebar}
-        aria-label="Toggle sidebar"
+        title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
         className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <PanelLeft className="h-5 w-5" />
@@ -138,11 +145,6 @@ export function AppHeader({ onToggleSidebar }: { onToggleSidebar: () => void }) 
             <DropdownMenuItem asChild>
               <Link to="/cameras" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" /> Cameras & Rooms
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/users" className="flex items-center gap-2">
-                <UsersRound className="h-4 w-4" /> Users & Roles
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

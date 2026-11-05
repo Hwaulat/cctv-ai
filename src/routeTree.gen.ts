@@ -9,46 +9,41 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UsersImport } from './routes/users'
-import { Route as NotificationsImport } from './routes/notifications'
-import { Route as FloorPlanImport } from './routes/floor-plan'
-import { Route as EventsImport } from './routes/events'
-import { Route as CamerasImport } from './routes/cameras'
-import { Route as IndexImport } from './routes/index'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as CamerasRouteImport } from './routes/cameras'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as FloorPlanRouteImport } from './routes/floor-plan'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as UsersRouteImport } from './routes/users'
 
-const UsersRoute = UsersImport.update({
-  id: '/users',
-  path: '/users',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-
-const NotificationsRoute = NotificationsImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const FloorPlanRoute = FloorPlanImport.update({
-  id: '/floor-plan',
-  path: '/floor-plan',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const EventsRoute = EventsImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const CamerasRoute = CamerasImport.update({
+const CamerasRoute = CamerasRouteImport.update({
   id: '/cameras',
   path: '/cameras',
   getParentRoute: () => rootRouteImport,
 } as any)
-
-const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FloorPlanRoute = FloorPlanRouteImport.update({
+  id: '/floor-plan',
+  path: '/floor-plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -60,7 +55,6 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/users': typeof UsersRoute
 }
-
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cameras': typeof CamerasRoute
@@ -69,7 +63,6 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/users': typeof UsersRoute
 }
-
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
@@ -79,16 +72,22 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/users': typeof UsersRoute
 }
-
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cameras' | '/events' | '/floor-plan' | '/notifications' | '/users'
+  fullPaths:
+    '/' | '/cameras' | '/events' | '/floor-plan' | '/notifications' | '/users'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/cameras' | '/events' | '/floor-plan' | '/notifications' | '/users'
-  id: '__root__' | '/' | '/cameras' | '/events' | '/floor-plan' | '/notifications' | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/cameras'
+    | '/events'
+    | '/floor-plan'
+    | '/notifications'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
-
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CamerasRoute: typeof CamerasRoute
@@ -100,46 +99,46 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/users': {
-      id: '/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof UsersImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/floor-plan': {
-      id: '/floor-plan'
-      path: '/floor-plan'
-      fullPath: '/floor-plan'
-      preLoaderRoute: typeof FloorPlanImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/events': {
-      id: '/events'
-      path: '/events'
-      fullPath: '/events'
-      preLoaderRoute: typeof EventsImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cameras': {
       id: '/cameras'
       path: '/cameras'
       fullPath: '/cameras'
-      preLoaderRoute: typeof CamerasImport
+      preLoaderRoute: typeof CamerasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/floor-plan': {
+      id: '/floor-plan'
+      path: '/floor-plan'
+      fullPath: '/floor-plan'
+      preLoaderRoute: typeof FloorPlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -153,7 +152,6 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   UsersRoute: UsersRoute,
 }
-
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()

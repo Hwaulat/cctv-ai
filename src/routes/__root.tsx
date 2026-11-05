@@ -119,33 +119,45 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Open on desktop, closed on mobile; follow viewport changes.
+  // Restore preference from localStorage on client, default open, don't change on window resize
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    setSidebarOpen(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setSidebarOpen(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    try {
+      const saved = localStorage.getItem("cctv_sidebar_open");
+      if (saved !== null) {
+        setSidebarOpen(saved === "true");
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const handleToggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("cctv_sidebar_open", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen w-full bg-background">
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-30 bg-foreground/40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-        <AppSidebar open={sidebarOpen} />
+        <AppSidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
         <div
           className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-200 ${
-            sidebarOpen ? "lg:ml-64" : ""
+            sidebarOpen ? "ml-64" : "ml-0"
           }`}
         >
-          <AppHeader onToggleSidebar={() => setSidebarOpen((v) => !v)} />
+          <AppHeader
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={handleToggleSidebar}
+          />
           <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 lg:px-8">
             <Outlet />
           </main>

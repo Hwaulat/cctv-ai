@@ -5,14 +5,9 @@ import {
   Map,
   History,
   Camera,
-  BellRing,
-  Users,
-  ChevronUp,
-  Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { events, rooms } from "@/lib/data";
 
 interface NavBadge {
@@ -30,7 +25,7 @@ function NavItem({
   to: string;
   icon: LucideIcon;
   label: string;
-  badge?: NavBadge;
+  badge?: NavBadge | undefined;
   compact?: boolean;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -74,7 +69,13 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function AppSidebar({ open }: { open: boolean }) {
+export function AppSidebar({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle?: () => void;
+}) {
   const alertCount = rooms.filter((r) => r.smoke === "alert").length;
 
   return (
@@ -104,22 +105,10 @@ export function AppSidebar({ open }: { open: boolean }) {
           <NavItem to="/events" icon={History} label="Event Log" badge={{ text: String(events.length), tone: "count" }} />
         </nav>
 
-        {/* Collapsible setup group */}
-        <Collapsible defaultOpen className="group/setup">
-          <SectionLabel>Setup System</SectionLabel>
-          <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/90 transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground">
-            <Layers className="h-4 w-4 shrink-0" />
-            <span className="flex-1 truncate text-left">Master Setup</span>
-            <ChevronUp className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=closed]/setup:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="ml-[26px] mt-1 flex flex-col gap-1 border-l border-sidebar-border pl-3">
-              <NavItem to="/cameras" icon={Camera} label="Cameras & Rooms" compact />
-              <NavItem to="/notifications" icon={BellRing} label="Notification Rules" compact />
-              <NavItem to="/users" icon={Users} label="Users & Roles" compact />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        <SectionLabel>Setup System</SectionLabel>
+        <nav className="flex flex-col gap-1">
+          <NavItem to="/cameras" icon={Camera} label="Cameras & Rooms" />
+        </nav>
       </div>
 
       {/* Footer */}

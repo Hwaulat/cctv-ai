@@ -31,6 +31,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   eventStatusLabel,
   eventTypeLabel,
+  events,
   roomById,
   rooms,
   type EventStatus,
