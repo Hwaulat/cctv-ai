@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/utils/cn";
 import {
   Dialog,
   DialogContent,
@@ -255,7 +256,7 @@ function EventsPage() {
                 DATE & TIME <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
               </TableHead>
               <TableHead>SNAPSHOT</TableHead>
-              <TableHead className="pr-4 text-right">EVALUATION</TableHead>
+              <TableHead className="w-32 pr-4 text-right">EVALUATION</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -332,36 +333,61 @@ function EventsPage() {
                     )}
                   </TableCell>
 
-                  {/* Evaluation Actions */}
-                  <TableCell className="pr-4 text-right" onClick={(ev) => ev.stopPropagation()}>
+                  {/* Evaluation Actions (matching outline icon buttons from Action column) */}
+                  <TableCell className="w-32 pr-4 text-right" onClick={(ev) => ev.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      {e.status === "unacknowledged" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => setStatusFor(e.id, "acknowledged", "Acknowledged")}
-                        >
-                          <Check className="mr-1 h-3.5 w-3.5" /> Ack
-                        </Button>
-                      )}
+                      {/* Button Acknowledge */}
                       <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => setStatusFor(e.id, "true-alarm", "True Alarm")}
-                        title="Mark as True Alarm"
+                        type="button"
+                        variant="icon"
+                        size="iconS"
+                        className={cn(
+                          "w-8 h-8 border-gray-200 dark:border-gray-600 transition-all",
+                          e.status === "acknowledged"
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-600 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                            : "text-gray-400 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-400"
+                        )}
+                        onClick={() => setStatusFor(e.id, "acknowledged", "Acknowledged")}
+                        title={e.status === "acknowledged" ? "Acknowledged" : "Acknowledge event"}
+                        aria-label="Acknowledge event"
                       >
-                        <ThumbsUp className="h-3.5 w-3.5 text-destructive" />
+                        <Check className="size-3.5" />
                       </Button>
+
+                      {/* Button Like (True Alarm) */}
                       <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => setStatusFor(e.id, "false-alarm", "False Alarm")}
-                        title="Mark as False Alarm"
+                        type="button"
+                        variant="icon"
+                        size="iconS"
+                        className={cn(
+                          "w-8 h-8 border-gray-200 dark:border-gray-600 transition-all",
+                          e.status === "true-alarm"
+                            ? "border-red-500 bg-red-50 text-red-600 dark:border-red-700 dark:bg-red-950/40 dark:text-red-400"
+                            : "text-gray-400 hover:border-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                        )}
+                        onClick={() => setStatusFor(e.id, "true-alarm", "True Alarm")}
+                        title={e.status === "true-alarm" ? "True Alarm (Selected)" : "Mark as True Alarm"}
+                        aria-label="Mark as True Alarm"
                       >
-                        <ThumbsDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        <ThumbsUp className="size-3.5" />
+                      </Button>
+
+                      {/* Button Dislike (False Alarm) */}
+                      <Button
+                        type="button"
+                        variant="icon"
+                        size="iconS"
+                        className={cn(
+                          "w-8 h-8 border-gray-200 dark:border-gray-600 transition-all",
+                          e.status === "false-alarm"
+                            ? "border-slate-500 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                            : "text-gray-400 hover:border-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800/40 dark:hover:text-slate-300"
+                        )}
+                        onClick={() => setStatusFor(e.id, "false-alarm", "False Alarm")}
+                        title={e.status === "false-alarm" ? "False Alarm (Selected)" : "Mark as False Alarm"}
+                        aria-label="Mark as False Alarm"
+                      >
+                        <ThumbsDown className="size-3.5" />
                       </Button>
                     </div>
                   </TableCell>

@@ -1,127 +1,228 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import React, { useMemo } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { SidebarProps, SidebarNavigationItem } from '@/types/layout';
+import SidebarItem from './sidebar-item';
 import {
-  Cctv,
+  Camera,
+  History,
   LayoutGrid,
   Map,
-  History,
-  Camera,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+} from 'lucide-react';
+import { events, rooms } from '@/lib/data';
 
-import { events, rooms } from "@/lib/data";
-
-interface NavBadge {
-  text: string;
-  tone: "alert" | "count";
-}
-
-function NavItem({
-  to,
-  icon: Icon,
-  label,
-  badge,
-  compact = false,
-}: {
-  to: string;
-  icon: LucideIcon;
-  label: string;
-  badge?: NavBadge | undefined;
-  compact?: boolean;
-}) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const active = pathname === to;
-
-  return (
-    <Link
-      to={to}
-      className={`relative flex items-center rounded-md font-medium transition-colors ${
-        compact ? "gap-2.5 px-2.5 py-1.5 text-xs" : "gap-3 px-3 py-2 text-sm"
-      } ${
-        active
-          ? "bg-sidebar-active text-white"
-          : "text-sidebar-foreground/75 hover:bg-sidebar-hover hover:text-sidebar-foreground"
-      }`}
-    >
-      {active && <span className="absolute inset-y-1 left-0 w-1 rounded-full bg-white" />}
-      <Icon className={compact ? "h-3.5 w-3.5 shrink-0" : "h-4 w-4 shrink-0"} />
-      <span className="flex-1 truncate">{label}</span>
-      {badge && (
-        <span
-          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
-            badge.tone === "alert" ? "bg-destructive text-white" : "bg-info text-white"
-          }`}
-        >
-          {badge.text}
-        </span>
-      )}
-    </Link>
-  );
-}
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <div className="mb-2 mt-6 flex items-center gap-2 px-3 first:mt-2">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-muted">
-        {children}
-      </span>
-      <span className="h-px flex-1 bg-sidebar-border" />
-    </div>
-  );
-}
-
-export function AppSidebar({
+const Sidebar: React.FC<SidebarProps> = ({
+  items: itemsProp,
+  sidebarOpen: sidebarOpenProp,
+  setSidebarOpen,
   open,
   onToggle,
-}: {
-  open: boolean;
-  onToggle?: () => void;
-}) {
-  const alertCount = rooms.filter((r) => r.smoke === "alert").length;
+  collapsed: collapsedProp,
+  canAccess = () => true,
+
+  logo = '/rdl-icon.svg',
+  title = 'AI CCTV Monitoring',
+  subtitle = 'Security Platform',
+  version = 'v2.4.1',
+
+  preview = false,
+}) => {
+  const alertCount = rooms.filter((r) => r.smoke === 'alert').length;
+
+  const defaultItems: SidebarNavigationItem[] = useMemo(
+    () => [
+      { type: 'section', label: 'Core Functions' },
+      {
+        label: 'Monitoring',
+        to: '/',
+        icon: <LayoutGrid className="w-4 h-4" />,
+        badge:
+          alertCount > 0
+            ? { text: `${alertCount} ALERT`, tone: 'alert' }
+            : undefined,
+      },
+      {
+        label: 'Floor Plan Heatmap',
+        to: '/floor-plan',
+        icon: <Map className="w-4 h-4" />,
+      },
+      {
+        label: 'Event Log',
+        to: '/events',
+        icon: <History className="w-4 h-4" />,
+        badge: { text: String(events.length), tone: 'count' },
+      },
+      { type: 'section', label: 'Setup System' },
+      {
+        label: 'Cameras & Rooms',
+        to: '/cameras',
+        icon: <Camera className="w-4 h-4" />,
+      },
+    ],
+    [alertCount],
+  );
+
+  const items = itemsProp ?? defaultItems;
+
+  const isSidebarOpen =
+    sidebarOpenProp !== undefined
+      ? sidebarOpenProp
+      : open !== undefined
+        ? open
+        : true;
+
+  const isCollapsed =
+    collapsedProp !== undefined ? collapsedProp : !isSidebarOpen;
+
+  const handleClose = () => {
+    if (setSidebarOpen) {
+      setSidebarOpen(false);
+    } else if (onToggle && isSidebarOpen) {
+      onToggle();
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (item.type === 'section') return true;
+
+      if (item.children) {
+        return item.children.some((child) => canAccess(child.module));
+      }
+
+      return canAccess(item.module);
+    });
+  }, [items, canAccess]);
 
   return (
-    <aside
-      className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-200 ${
-        open ? "translate-x-0" : "-translate-x-full"
-      }`}
-    >
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-3 pb-3 pt-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-info to-sidebar-active shadow-lg">
-            <Cctv className="h-5 w-5 text-white" />
+    <>
+      {/* Mobile */}
+      {!preview && (
+        <aside
+          className={`fixed top-0 left-0 lg:hidden z-40 h-dvh w-64 bg-[#0D1B2E] flex flex-col transition-transform duration-300 ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Header */}
+          <div className="h-16 px-5 border-b border-white/10 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <img src={logo} alt={title} className="w-10 h-10 object-contain" />
+
+              <div>
+                <p className="text-white text-sm font-bold leading-tight">{title}</p>
+                <p className="text-[#4E8FD9] text-xs font-medium leading-tight">{subtitle}</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-9 h-9 rounded-lg hover:bg-white/5 text-white flex items-center justify-center cursor-pointer transition-colors"
+              aria-label="Close sidebar"
+            >
+              ✕
+            </button>
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight text-white">
-              AI CCTV Monitoring
-            </p>
-            <p className="text-[11px] font-medium leading-tight text-info">Security Platform</p>
+
+          {/* Menu */}
+          <ScrollArea className="flex-1">
+            <nav className="px-3 py-4 space-y-1">
+              {filteredItems.map((item, i) =>
+                item.type === 'section' ? (
+                  <div
+                    key={i}
+                    className="text-[#3D5A7A] text-[10px] font-semibold uppercase tracking-[0.16em] px-3 py-2"
+                  >
+                    {item.label}
+                  </div>
+                ) : (
+                  <SidebarItem
+                    key={i}
+                    item={item}
+                    collapsed={false}
+                    isMobile
+                    canAccess={canAccess}
+                  />
+                ),
+              )}
+            </nav>
+          </ScrollArea>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-white/10 text-xs text-[#3D5A7A] flex items-center justify-between">
+            <span>System Online</span>
+            <span className="font-mono text-[10px]">{version}</span>
           </div>
+        </aside>
+      )}
+
+      {/* Desktop */}
+      <aside
+        className={`${
+          preview ? 'absolute' : 'hidden lg:flex fixed'
+        } left-0 top-0 z-30 h-full lg:h-dvh bg-[#0D1B2E] flex-col transition-all duration-300 ${
+          isCollapsed ? 'w-[68px]' : 'w-64'
+        }`}
+      >
+        {/* Header */}
+        <div className="h-16 border-b border-white/10 flex items-center px-3 shrink-0">
+          {isCollapsed ? (
+            <img src={logo} alt={title} className="w-10 h-10 mx-auto object-contain" />
+          ) : (
+            <div className="flex items-center gap-3 px-2">
+              <img src={logo} alt={title} className="w-10 h-10 object-contain" />
+
+              <div>
+                <p className="text-white text-sm font-bold leading-tight">{title}</p>
+                <p className="text-[#4E8FD9] text-xs font-medium leading-tight">{subtitle}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        <SectionLabel>Core Functions</SectionLabel>
-        <nav className="flex flex-col gap-1">
-          <NavItem to="/" icon={LayoutGrid} label="Monitoring" badge={alertCount > 0 ? { text: `${alertCount} ALERT`, tone: "alert" } : undefined} />
-          <NavItem to="/floor-plan" icon={Map} label="Floor Plan Heatmap" />
-          <NavItem to="/events" icon={History} label="Event Log" badge={{ text: String(events.length), tone: "count" }} />
-        </nav>
+        {/* Menu */}
+        <ScrollArea className="flex-1">
+          <nav className="px-3 py-4 space-y-1">
+            {filteredItems.map((item, i) =>
+              item.type === 'section' ? (
+                !isCollapsed && (
+                  <div
+                    key={i}
+                    className="text-[#3D5A7A] text-[10px] font-semibold uppercase tracking-[0.16em] px-3 py-2"
+                  >
+                    {item.label}
+                  </div>
+                )
+              ) : (
+                <SidebarItem
+                  key={i}
+                  item={item}
+                  collapsed={isCollapsed}
+                  isMobile={false}
+                  canAccess={canAccess}
+                />
+              ),
+            )}
+          </nav>
+        </ScrollArea>
 
-        <SectionLabel>Setup System</SectionLabel>
-        <nav className="flex flex-col gap-1">
-          <NavItem to="/cameras" icon={Camera} label="Cameras & Rooms" />
-        </nav>
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-sidebar-border px-4 py-3">
-        <span className="flex items-center gap-2 text-xs font-medium text-sidebar-foreground/80">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-          </span>
-          System Online
-        </span>
-        <span className="font-mono text-[10px] text-sidebar-muted">v2.4.1</span>
-      </div>
-    </aside>
+        {/* Footer */}
+        <div className="p-4 border-t border-white/10 text-xs text-[#3D5A7A] flex items-center justify-between">
+          {isCollapsed ? (
+            <span className="mx-auto text-success text-base leading-none">●</span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-success inline-block" />
+                System Online
+              </span>
+              <span className="font-mono text-[10px]">{version}</span>
+            </>
+          )}
+        </div>
+      </aside>
+    </>
   );
-}
+};
+
+export const AppSidebar = Sidebar;
+export default Sidebar;

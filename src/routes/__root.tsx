@@ -150,8 +150,8 @@ function RootComponent() {
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
         <div
-          className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-200 ${
-            sidebarOpen ? "ml-64" : "ml-0"
+          className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ${
+            sidebarOpen ? "ml-0 lg:ml-64" : "ml-0 lg:ml-[68px]"
           }`}
         >
           <AppHeader
