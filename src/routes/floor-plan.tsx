@@ -3,16 +3,10 @@ import { useState } from "react";
 import { Grid3x3, MapPinned, Users } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectInput, type SelectOptionProps } from "@/components/ui/select-input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, type TabItem } from "@/components/tabs";
 import { rooms, type Room } from "@/lib/data";
 
 export const Route = createFileRoute("/floor-plan")({
@@ -69,8 +63,26 @@ function FloorPlanPage() {
 
   const visible = (id: string) => roomFilter === "all" || roomFilter === id;
 
+  const rangeOptions: SelectOptionProps[] = [
+    { value: "live", label: "Live · last 5 min" },
+    { value: "hour", label: "Last hour" },
+    { value: "today", label: "Today" },
+    { value: "custom", label: "Custom range" },
+  ];
+
+  const floorRoomOptions: SelectOptionProps[] = [
+    { value: "all", label: "All rooms" },
+    ...rooms.map((r) => ({ value: r.id, label: r.name })),
+  ];
+
+  const viewTabItems: TabItem[] = [
+    { value: "heatmap", label: "Heatmap", icon: <Grid3x3 className="h-3.5 w-3.5" /> },
+    { value: "dots", label: "Person dots", icon: <MapPinned className="h-3.5 w-3.5" /> },
+    { value: "both", label: "Both" },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Floor Plan Heatmap</h1>
@@ -79,30 +91,20 @@ function FloorPlanPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="live">Live · last 5 min</SelectItem>
-              <SelectItem value="hour">Last hour</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="custom">Custom range</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={roomFilter} onValueChange={setRoomFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All rooms</SelectItem>
-              {rooms.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SelectInput
+            datalist={rangeOptions}
+            value={range}
+            onChange={(val) => setRange(val ?? "live")}
+            containerClassName="w-40 sm:w-44"
+            hideClear
+          />
+          <SelectInput
+            datalist={floorRoomOptions}
+            value={roomFilter}
+            onChange={(val) => setRoomFilter(val ?? "all")}
+            containerClassName="w-44 sm:w-48"
+            hideClear
+          />
         </div>
       </div>
 
@@ -113,19 +115,12 @@ function FloorPlanPage() {
               <CardTitle className="text-base">Level 1 — Main Building</CardTitle>
               <CardDescription>7 rooms · 8 cameras calibrated · cell size 1 m</CardDescription>
             </div>
-            <Tabs value={view} onValueChange={setView}>
-              <TabsList>
-                <TabsTrigger value="heatmap" className="gap-1.5">
-                  <Grid3x3 className="h-3.5 w-3.5" /> Heatmap
-                </TabsTrigger>
-                <TabsTrigger value="dots" className="gap-1.5">
-                  <MapPinned className="h-3.5 w-3.5" /> Person dots
-                </TabsTrigger>
-                <TabsTrigger value="both" className="gap-1.5">
-                  Both
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <Tabs
+              variant="primary"
+              value={view}
+              onValueChange={setView}
+              items={viewTabItems}
+            />
           </CardHeader>
           <CardContent>
             <svg viewBox="0 0 900 480" className="w-full rounded-lg border bg-muted/40">

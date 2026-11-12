@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Bell, Mail, MessageSquare, Plus, Send, Smartphone } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  Bell,
+  ChevronsUpDown,
+  Mail,
+  MessageSquare,
+  Plus,
+  Send,
+  Smartphone,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,13 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectInput, type SelectOptionProps } from "@/components/ui/select-input";
+import { Search } from "@/components/ui/search";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -33,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TablePagination } from "@/components/ui/table-pagination";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({
@@ -82,9 +87,44 @@ const initialRules: Rule[] = [
 
 function NotificationsPage() {
   const [rules, setRules] = useState<Rule[]>(initialRules);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [channelFilter, setChannelFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [newName, setNewName] = useState("");
   const [newTrigger, setNewTrigger] = useState("smoke");
   const [newRecipients, setNewRecipients] = useState("");
+
+  const triggerOptions: SelectOptionProps[] = useMemo(
+    () => [
+      { value: "smoke", label: "Smoke suspected / alert" },
+      { value: "capacity", label: "Capacity exceeded" },
+      { value: "offline", label: "Camera offline" },
+    ],
+    [],
+  );
+
+  const channelFilterOptions: SelectOptionProps[] = useMemo(
+    () => [
+      { value: "all", label: "All Channels" },
+      { value: "Telegram", label: "Telegram" },
+      { value: "Email", label: "Email" },
+      { value: "Webhook", label: "Webhook" },
+      { value: "SMS", label: "SMS" },
+    ],
+    [],
+  );
+
+  const statusFilterOptions: SelectOptionProps[] = useMemo(
+    () => [
+      { value: "all", label: "All Status" },
+      { value: "active", label: "Active" },
+      { value: "paused", label: "Paused" },
+    ],
+    [],
+  );
 
   const addRule = () => {
     if (!newName.trim() || !newRecipients.trim()) {
@@ -121,60 +161,86 @@ function NotificationsPage() {
     );
   };
 
-  const testWebhook = () => {
-    toast.success("Test alert payload sent successfully to webhook endpoint (HTTP 200 OK)");
+  const deleteRule = (id: string, name: string) => {
+    setRules((prev) => prev.filter((r) => r.id !== id));
+    toast.success(`Rule "${name}" deleted (demo)`);
   };
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rules.filter((r) => {
+      if (q) {
+        const match =
+          r.name.toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q) ||
+          r.trigger.toLowerCase().includes(q) ||
+          r.recipients.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (statusFilter === "active" && !r.active) return false;
+      if (statusFilter === "paused" && r.active) return false;
+      if (channelFilter !== "all" && !r.channels.includes(channelFilter)) return false;
+      return true;
+    });
+  }, [rules, search, statusFilter, channelFilter]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  const testWebhook = () => toast.success("Test payload delivered with HTTP 200 (demo)");
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-6 w-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Notification Rules</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Configure automated channels and dispatch rules for AI detections and system events.
+            Multi-channel dispatch rules with quiet-hours exemption for critical safety alerts.
           </p>
         </div>
+
         <Dialog>
           <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> Add alert rule
+            <Button className="gap-1.5 self-start sm:self-auto">
+              <Plus className="h-4 w-4" /> Add notification rule
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Notification Rule</DialogTitle>
+              <DialogTitle>Add notification rule</DialogTitle>
               <DialogDescription>
-                Define conditions and dispatch channels for automated alerts.
+                Define trigger condition, delivery channels, and recipient list.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-2">
+            <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="rule-name">Rule Name</Label>
+                <Label htmlFor="rule-name">Rule name</Label>
                 <Input
                   id="rule-name"
-                  placeholder="e.g., Server Room Thermal Warning"
+                  placeholder="e.g. Critical Safety Escalate"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="rule-trigger">Trigger Event</Label>
-                <Select value={newTrigger} onValueChange={setNewTrigger}>
-                  <SelectTrigger id="rule-trigger">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="smoke">Smoke or Fire Detected</SelectItem>
-                    <SelectItem value="capacity">Room Overcrowding</SelectItem>
-                    <SelectItem value="offline">Camera Offline</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div>
+                <SelectInput
+                  label="Trigger event"
+                  placeholder="Select trigger event"
+                  datalist={triggerOptions}
+                  value={newTrigger}
+                  onChange={(val) => {
+                    if (val) setNewTrigger(val);
+                  }}
+                  required
+                />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="rule-recipients">Recipients / Webhook URL</Label>
+                <Label htmlFor="rule-recipients">Recipients (comma separated)</Label>
                 <Input
                   id="rule-recipients"
-                  placeholder="email@facility.internal or https://api.ops/webhook"
+                  placeholder="safety@cctv.io, +62812999"
                   value={newRecipients}
                   onChange={(e) => setNewRecipients(e.target.value)}
                 />
@@ -187,7 +253,8 @@ function NotificationsPage() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      {/* Integration stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Telegram Bot</CardTitle>
@@ -195,7 +262,7 @@ function NotificationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">Connected</div>
-            <p className="text-xs text-muted-foreground">@CCTV_AI_Security_Bot</p>
+            <p className="text-xs text-muted-foreground">@SafetyAlertsCctvBot</p>
           </CardContent>
         </Card>
         <Card>
@@ -233,22 +300,92 @@ function NotificationsPage() {
         </Card>
       </div>
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      {/* Table Container enclosing Header Filters, Table, and Footer Pagination */}
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        {/* Header Filter Section inside table container */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card p-3 sm:p-4">
+          {/* Search on the Left */}
+          <Search
+            placeholder="Search rules, triggers, recipients..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            containerClassName="flex-1 min-w-[240px] h-9"
+          />
+
+          {/* Filter Dropdowns on the Right */}
+          <div className="flex flex-wrap items-center gap-2">
+            <SelectInput
+              datalist={channelFilterOptions}
+              value={channelFilter}
+              onChange={(val) => {
+                setChannelFilter(val ?? "all");
+                setPage(1);
+              }}
+              containerClassName="w-38 sm:w-40"
+              hideClear
+            />
+
+            <SelectInput
+              datalist={statusFilterOptions}
+              value={statusFilter}
+              onChange={(val) => {
+                setStatusFilter(val ?? "all");
+                setPage(1);
+              }}
+              containerClassName="w-32 sm:w-36"
+              hideClear
+            />
+          </div>
+        </div>
+
+        {/* Table */}
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-4">Rule Name</TableHead>
-              <TableHead>Trigger Condition</TableHead>
-              <TableHead>Channels</TableHead>
-              <TableHead>Recipients</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="pr-4 text-right">Actions</TableHead>
+              <TableHead className="w-20 pl-4">ACTION</TableHead>
+              <TableHead>
+                STATUS <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>
+                RULE NAME <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>
+                TRIGGER CONDITION <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>CHANNELS</TableHead>
+              <TableHead>RECIPIENTS</TableHead>
+              <TableHead className="pr-4 text-right">TOGGLE</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rules.map((rule) => (
+            {paginated.map((rule) => (
               <TableRow key={rule.id}>
-                <TableCell className="pl-4 font-medium">
+                <TableCell className="pl-4">
+                  <Button
+                    type="button"
+                    variant="iconDelete"
+                    size="iconS"
+                    onClick={() => deleteRule(rule.id, rule.name)}
+                    title="Delete rule"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${
+                      rule.active
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
+                    }`}
+                  >
+                    {rule.active ? "Active" : "Paused"}
+                  </span>
+                </TableCell>
+                <TableCell className="font-medium">
                   {rule.name}
                   <span className="block font-mono text-[11px] text-muted-foreground">{rule.id}</span>
                 </TableCell>
@@ -265,25 +402,30 @@ function NotificationsPage() {
                 <TableCell className="max-w-xs truncate font-mono text-xs text-muted-foreground">
                   {rule.recipients}
                 </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      rule.active
-                        ? "bg-success/10 text-success border-transparent"
-                        : "bg-muted text-muted-foreground border-transparent"
-                    }
-                  >
-                    {rule.active ? "Active" : "Paused"}
-                  </Badge>
-                </TableCell>
                 <TableCell className="pr-4 text-right">
                   <Switch checked={rule.active} onCheckedChange={() => toggleActive(rule.id)} />
                 </TableCell>
               </TableRow>
             ))}
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                  No notification rules match the current search or filters.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
+
+        {/* Footer Pagination */}
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="border-t bg-card"
+        />
       </div>
     </div>
   );

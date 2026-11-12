@@ -158,7 +158,7 @@ function RootComponent() {
             sidebarOpen={sidebarOpen}
             onToggleSidebar={handleToggleSidebar}
           />
-          <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 lg:px-8">
+          <main className="w-full flex-1 px-4 py-6 lg:px-8">
             <Outlet />
           </main>
         </div>

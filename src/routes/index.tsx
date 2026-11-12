@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   AlertTriangle,
+  MapPin,
 } from "lucide-react";
 import {
   Area,
@@ -40,13 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectInput, type SelectOptionProps } from "@/components/ui/select-input";
+import { Tabs, type TabItem } from "@/components/tabs";
 import {
   eventTypeLabel,
   events,
@@ -192,6 +188,12 @@ function StatCard({
   );
 }
 
+const cameraFeedModelOptions: SelectOptionProps[] = [
+  { value: "people-counting", label: "People Counting" },
+  { value: "smoke-detection", label: "Smoke Detection" },
+  { value: "crowd-capacity", label: "Crowd / Capacity" },
+];
+
 function CameraFeedCard({
   camera,
   room,
@@ -219,22 +221,15 @@ function CameraFeedCard({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {showModelSelector ? (
-              <Select
+              <SelectInput
+                datalist={cameraFeedModelOptions}
                 value={camera.model}
-                onValueChange={(val: AIModel) => onModelChange(camera.id, val)}
-              >
-                <SelectTrigger
-                  className="h-6 w-34 px-2 text-[10px] font-semibold"
-                  title="Change active AI model for this camera"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="people-counting">People Counting</SelectItem>
-                  <SelectItem value="smoke-detection">Smoke Detection</SelectItem>
-                  <SelectItem value="crowd-capacity">Crowd / Capacity</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(val) => {
+                  if (val) onModelChange(camera.id, val as AIModel);
+                }}
+                containerClassName="w-36"
+                hideClear
+              />
             ) : (
               <Badge variant="secondary" className="h-6 px-2 text-[10px] font-medium">
                 {aiModelLabels[camera.model]}
@@ -389,19 +384,15 @@ function CameraFeedCard({
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground">Camera Model:</Label>
               {showModelSelector ? (
-                <Select
+                <SelectInput
+                  datalist={cameraFeedModelOptions}
                   value={camera.model}
-                  onValueChange={(val: AIModel) => onModelChange(camera.id, val)}
-                >
-                  <SelectTrigger className="h-8 w-40 text-xs font-semibold">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="people-counting">People Counting</SelectItem>
-                    <SelectItem value="smoke-detection">Smoke Detection</SelectItem>
-                    <SelectItem value="crowd-capacity">Crowd / Capacity</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(val) => {
+                    if (val) onModelChange(camera.id, val as AIModel);
+                  }}
+                  containerClassName="w-40"
+                  hideClear
+                />
               ) : (
                 <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1">
                   {aiModelLabels[camera.model]}
@@ -498,6 +489,7 @@ function CameraFeedCard({
 
 function Dashboard() {
   const [cameraList, setCameraList] = useState<Camera[]>(initialCameras);
+  const [selectedArea, setSelectedArea] = useState<string>("all");
   const [selectedModel, setSelectedModel] = useState<"all" | AIModel>("all");
 
   const handleModelChange = (camId: string, model: AIModel) => {
@@ -507,39 +499,135 @@ function Dashboard() {
   };
 
   const filteredCameras = useMemo(() => {
-    if (selectedModel === "all") return cameraList;
-    return cameraList.filter((c) => c.model === selectedModel);
-  }, [cameraList, selectedModel]);
+    let result = cameraList;
+    if (selectedArea !== "all") {
+      result = result.filter((c) => c.roomId === selectedArea);
+    }
+    if (selectedModel !== "all") {
+      result = result.filter((c) => c.model === selectedModel);
+    }
+    return result;
+  }, [cameraList, selectedArea, selectedModel]);
 
-  // Model counts for filter tabs
+  // Model counts for filter tabs within selected area
   const modelCounts = useMemo(() => {
-    const people = cameraList.filter((c) => c.model === "people-counting").length;
-    const smoke = cameraList.filter((c) => c.model === "smoke-detection").length;
-    const capacity = cameraList.filter((c) => c.model === "crowd-capacity").length;
-    return { all: cameraList.length, people, smoke, capacity };
-  }, [cameraList]);
+    const baseList =
+      selectedArea === "all"
+        ? cameraList
+        : cameraList.filter((c) => c.roomId === selectedArea);
+    const people = baseList.filter((c) => c.model === "people-counting").length;
+    const smoke = baseList.filter((c) => c.model === "smoke-detection").length;
+    const capacity = baseList.filter((c) => c.model === "crowd-capacity").length;
+    return { all: baseList.length, people, smoke, capacity };
+  }, [cameraList, selectedArea]);
 
-  const onlineCameras = cameraList.filter((c) => c.status === "online").length;
-  const smokeAlerts = rooms.filter((r) => r.smoke === "alert").length;
-  const recent = events.slice(0, 5);
+  const activeRooms = useMemo(() => {
+    return selectedArea === "all" ? rooms : rooms.filter((r) => r.id === selectedArea);
+  }, [selectedArea]);
+
+  const activeCameras = useMemo(() => {
+    return selectedArea === "all" ? cameraList : cameraList.filter((c) => c.roomId === selectedArea);
+  }, [cameraList, selectedArea]);
+
+  const onlineCameras = activeCameras.filter((c) => c.status === "online").length;
+  const smokeAlerts = activeRooms.filter((r) => r.smoke === "alert").length;
+  const areaHeadcount = activeRooms.reduce((acc, r) => acc + r.headcount, 0);
+
+  const selectedRoomObj = useMemo(() => {
+    return rooms.find((r) => r.id === selectedArea);
+  }, [selectedArea]);
+
+  const recent = useMemo(() => {
+    const list = selectedArea === "all" ? events : events.filter((e) => e.roomId === selectedArea);
+    return list.slice(0, 5);
+  }, [selectedArea]);
+
+  const areaSelectOptions: SelectOptionProps[] = useMemo(
+    () => [
+      {
+        value: "all",
+        label: "All Areas",
+        optionLabel: (
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span>All Areas</span>
+          </div>
+        ),
+      },
+      ...rooms.map((room) => ({
+        value: room.id,
+        label: room.name,
+        optionLabel: (
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span>{room.name}</span>
+          </div>
+        ),
+      })),
+    ],
+    [],
+  );
+
+  const modelTabItems: TabItem[] = useMemo(
+    () => [
+      {
+        value: "all",
+        label: "All Cameras",
+        badge: modelCounts.all,
+      },
+      {
+        value: "people-counting",
+        label: "People Counting",
+        icon: <Users className="h-3.5 w-3.5 text-info" />,
+        badge: modelCounts.people,
+      },
+      {
+        value: "smoke-detection",
+        label: "Smoke Detection",
+        icon: <Flame className="h-3.5 w-3.5 text-destructive" />,
+        badge: modelCounts.smoke,
+      },
+      {
+        value: "crowd-capacity",
+        label: "Crowd / Capacity",
+        icon: <Activity className="h-3.5 w-3.5 text-warning" />,
+        badge: modelCounts.capacity,
+      },
+    ],
+    [modelCounts],
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Monitoring Dashboard</h1>
           <p className="text-sm text-muted-foreground">
             1 camera = 1 dedicated AI model. Select an AI model to view cameras operating that model.
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-xs font-medium">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+
+        {/* Area Select Dropdown & Live Status Info */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Select Dropdown for Area Name */}
+          <SelectInput
+            datalist={areaSelectOptions}
+            value={selectedArea}
+            onChange={(val) => setSelectedArea(val ?? "all")}
+            containerClassName="w-44 sm:w-48"
+            hideClear
+          />
+
+          {/* Informasi Live Updated */}
+          <span className="inline-flex shrink-0 items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-xs font-medium">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+            </span>
+            Live · updated 5s ago
           </span>
-          Live · updated 5s ago
-        </span>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -547,21 +635,33 @@ function Dashboard() {
         <StatCard
           icon={Cctv}
           label="Total Cameras Online"
-          value={`${onlineCameras}/${cameraList.length}`}
-          detail={`${cameraList.length - onlineCameras} offline · 8 channels`}
+          value={`${onlineCameras}/${activeCameras.length}`}
+          detail={
+            selectedArea === "all"
+              ? `${cameraList.length - onlineCameras} offline · 8 channels`
+              : `${activeCameras.length - onlineCameras} offline in ${selectedRoomObj?.name ?? "area"}`
+          }
         />
         <StatCard
           icon={Flame}
           label="Smoke Detection Alerts"
           value={String(smokeAlerts)}
-          detail={smokeAlerts > 0 ? "Production Floor active alert" : "All smoke zones clear"}
+          detail={
+            smokeAlerts > 0
+              ? `${selectedRoomObj?.name ?? "Production Floor"} active alert`
+              : "All smoke zones clear"
+          }
           tone={smokeAlerts > 0 ? "danger" : "default"}
         />
         <StatCard
           icon={Users}
           label="People Counted (Live)"
-          value={String(totalHeadcount())}
-          detail="Active people counting models"
+          value={String(areaHeadcount)}
+          detail={
+            selectedArea === "all"
+              ? "Active people counting models"
+              : `Current in ${selectedRoomObj?.name ?? "area"}`
+          }
         />
         <StatCard
           icon={History}
@@ -580,81 +680,75 @@ function Dashboard() {
               Select AI Model
             </h2>
             <p className="text-xs text-muted-foreground">
-              Filter by AI model or view all cameras running their assigned model
+              {selectedArea === "all"
+                ? "Filter by AI model or view all cameras running their assigned model"
+                : `Filter cameras in ${selectedRoomObj?.name ?? "selected area"} by AI model`}
             </p>
           </div>
 
           {/* Model Selection Tabs */}
-          <div className="flex flex-wrap gap-1.5 rounded-lg border bg-muted/50 p-1">
-            <button
-              type="button"
-              onClick={() => setSelectedModel("all")}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${selectedModel === "all"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              All Cameras ({modelCounts.all})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedModel("people-counting")}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${selectedModel === "people-counting"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Users className="h-3.5 w-3.5 text-info" />
-              People Counting ({modelCounts.people})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedModel("smoke-detection")}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${selectedModel === "smoke-detection"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Flame className="h-3.5 w-3.5 text-destructive" />
-              Smoke Detection ({modelCounts.smoke})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedModel("crowd-capacity")}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${selectedModel === "crowd-capacity"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Activity className="h-3.5 w-3.5 text-warning" />
-              Crowd / Capacity ({modelCounts.capacity})
-            </button>
-          </div>
+          <Tabs
+            variant="primary"
+            value={selectedModel}
+            onValueChange={(val) => setSelectedModel(val as any)}
+            items={modelTabItems}
+          />
         </div>
 
         {/* Grid of Cameras */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredCameras.map((camera) => {
-            const room = roomById(camera.roomId);
-            return (
-              <CameraFeedCard
-                key={camera.id}
-                camera={camera}
-                room={room}
-                onModelChange={handleModelChange}
-                showModelSelector={selectedModel === "all"}
-              />
-            );
-          })}
-        </div>
+        {filteredCameras.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
+            <Cctv className="h-9 w-9 text-muted-foreground/50 mb-2" />
+            <p className="text-sm font-medium text-foreground">No cameras found</p>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+              No cameras in {selectedRoomObj ? selectedRoomObj.name : "the system"} match the active model filter.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              {selectedModel !== "all" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setSelectedModel("all")}
+                >
+                  Show all models
+                </Button>
+              )}
+              {selectedArea !== "all" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setSelectedArea("all")}
+                >
+                  Show all areas
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredCameras.map((camera) => {
+              const room = roomById(camera.roomId);
+              return (
+                <CameraFeedCard
+                  key={camera.id}
+                  camera={camera}
+                  room={room}
+                  onModelChange={handleModelChange}
+                  showModelSelector={selectedModel === "all"}
+                />
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* Analytics Charts & Event log */}
+      {/* Occupancy and Recent events */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Occupancy — last 24 hours</CardTitle>
-            <CardDescription>Total people on site per hour (peak 30 · avg 17)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-56">
@@ -667,20 +761,8 @@ function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11 }}
-                    stroke="var(--color-muted-foreground)"
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    stroke="var(--color-muted-foreground)"
-                    tickLine={false}
-                    axisLine={false}
-                    allowDecimals={false}
-                  />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       borderRadius: 8,
@@ -702,8 +784,9 @@ function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Recent events log */}
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-base">Recent events</CardTitle>
               <CardDescription>Latest smoke, capacity & camera events</CardDescription>
@@ -713,36 +796,46 @@ function Dashboard() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recent.map((e) => {
-              const room = roomById(e.roomId);
-              return (
-                <div key={e.id} className="flex items-start gap-3">
-                  <span
-                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${e.type === "smoke"
-                        ? "bg-destructive/10 text-destructive"
-                        : e.type === "capacity"
-                          ? "bg-warning/15 text-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
+            {recent.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                No recent events recorded for this area.
+              </p>
+            ) : (
+              recent.map((e) => {
+                const room = roomById(e.roomId);
+                return (
+                  <div
+                    key={e.id}
+                    className="flex items-start gap-2.5 rounded-lg border bg-muted/30 p-2.5 transition-colors hover:bg-muted/60"
                   >
-                    {e.type === "smoke" ? (
-                      <Flame className="h-3.5 w-3.5" />
-                    ) : (
-                      <Users className="h-3.5 w-3.5" />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{eventTypeLabel[e.type]}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {room?.name} · {e.camera}
-                    </p>
+                    <span
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                        e.type === "smoke"
+                          ? "bg-destructive/10 text-destructive"
+                          : e.type === "capacity"
+                            ? "bg-warning/15 text-foreground"
+                            : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {e.type === "smoke" ? (
+                        <Flame className="h-3.5 w-3.5" />
+                      ) : (
+                        <Users className="h-3.5 w-3.5" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold">{eventTypeLabel[e.type]}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {room?.name} · {e.camera}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                      {e.at.slice(11, 16)}
+                    </span>
                   </div>
-                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                    {e.at.slice(11, 16)}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>

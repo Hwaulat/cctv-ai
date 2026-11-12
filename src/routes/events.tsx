@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Check, Flame, ThumbsUp, ThumbsDown, Users, VideoOff } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  ChevronsUpDown,
+  Download,
+  Eye,
+  Flame,
+  ThumbsDown,
+  ThumbsUp,
+  Users,
+  VideoOff,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectInput, type SelectOptionProps } from "@/components/ui/select-input";
+import { Search } from "@/components/ui/search";
 import {
   Table,
   TableBody,
@@ -27,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   eventStatusLabel,
   eventTypeLabel,
@@ -53,60 +59,114 @@ export const Route = createFileRoute("/events")({
   component: EventsPage,
 });
 
-const statusClass: Record<EventStatus, string> = {
-  unacknowledged: "bg-destructive/10 text-destructive border-transparent",
-  acknowledged: "bg-muted text-muted-foreground border-transparent",
-  "true-alarm": "bg-success/10 text-success border-transparent",
-  "false-alarm": "bg-warning/15 text-foreground border-transparent",
+const statusPillClass: Record<EventStatus, string> = {
+  unacknowledged:
+    "rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+  acknowledged:
+    "rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+  "true-alarm":
+    "rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+  "false-alarm":
+    "rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300",
 };
 
 function TypeIcon({ type }: { type: EventType }) {
   if (type === "smoke") {
     return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-destructive/10 text-destructive">
-        <Flame className="h-4 w-4" />
+      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+        <Flame className="h-3.5 w-3.5" />
       </span>
     );
   }
   if (type === "capacity") {
     return (
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-warning/15 text-foreground">
-        <Users className="h-4 w-4" />
+      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-warning/15 text-foreground">
+        <Users className="h-3.5 w-3.5" />
       </span>
     );
   }
   return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-      <VideoOff className="h-4 w-4" />
+    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-muted-foreground">
+      <VideoOff className="h-3.5 w-3.5" />
     </span>
   );
 }
 
 function EventsPage() {
   const [items, setItems] = useState<MonitorEvent[]>(events);
+  const [search, setSearch] = useState("");
   const [room, setRoom] = useState("all");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState<MonitorEvent | null>(null);
 
-  const filtered = useMemo(
-    () =>
-      items
-        .filter((e) => (room === "all" ? true : e.roomId === room))
-        .filter((e) => (type === "all" ? true : e.type === type))
-        .filter((e) => (status === "all" ? true : e.status === status))
-        .sort((a, b) => b.at.localeCompare(a.at)),
-    [items, room, type, status],
-  );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items
+      .filter((e) => {
+        if (!q) return true;
+        const r = roomById(e.roomId);
+        return (
+          e.id.toLowerCase().includes(q) ||
+          e.camera.toLowerCase().includes(q) ||
+          (r && r.name.toLowerCase().includes(q)) ||
+          eventTypeLabel[e.type].toLowerCase().includes(q)
+        );
+      })
+      .filter((e) => (room === "all" ? true : e.roomId === room))
+      .filter((e) => (type === "all" ? true : e.type === type))
+      .filter((e) => (status === "all" ? true : e.status === status))
+      .sort((a, b) => b.at.localeCompare(a.at));
+  }, [items, search, room, type, status]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   const setStatusFor = (id: string, next: EventStatus, label: string) => {
-    setItems((prev) => prev.map((e) => (e.id === id ? { ...e, status: next, handler: "admin" } : e)));
+    setItems((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, status: next, handler: "admin" } : e)),
+    );
     toast.success(`${id} marked as ${label} (demo)`);
     setSelected((prev) => (prev && prev.id === id ? { ...prev, status: next } : prev));
   };
 
+  const handleExport = (e: MonitorEvent) => {
+    toast.success(`Exporting clip for ${e.id} (${e.camera}) — MP4 download initiated (demo)`);
+  };
+
+  const roomOptions: SelectOptionProps[] = useMemo(
+    () => [{ value: "all", label: "All Rooms" }, ...rooms.map((r) => ({ value: r.id, label: r.name }))],
+    [],
+  );
+
+  const typeOptions: SelectOptionProps[] = useMemo(
+    () => [
+      { value: "all", label: "All Types" },
+      { value: "smoke", label: "Smoke Detection" },
+      { value: "capacity", label: "Capacity Exceeded" },
+      { value: "camera-offline", label: "Camera Offline" },
+    ],
+    [],
+  );
+
+  const statusOptions: SelectOptionProps[] = useMemo(
+    () => [
+      { value: "all", label: "All Status" },
+      { value: "unacknowledged", label: "Unacknowledged" },
+      { value: "acknowledged", label: "Acknowledged" },
+      { value: "true-alarm", label: "True Alarm" },
+      { value: "false-alarm", label: "False Alarm" },
+    ],
+    [],
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Event Log</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -115,81 +175,148 @@ function EventsPage() {
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={room} onValueChange={setRoom}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Room" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All rooms</SelectItem>
-            {rooms.map((r) => (
-              <SelectItem key={r.id} value={r.id}>
-                {r.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Event type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All event types</SelectItem>
-            <SelectItem value="smoke">Smoke Detection</SelectItem>
-            <SelectItem value="capacity">Capacity Exceeded</SelectItem>
-            <SelectItem value="camera-offline">Camera Offline</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="unacknowledged">Unacknowledged</SelectItem>
-            <SelectItem value="acknowledged">Acknowledged</SelectItem>
-            <SelectItem value="true-alarm">True Alarm</SelectItem>
-            <SelectItem value="false-alarm">False Alarm</SelectItem>
-          </SelectContent>
-        </Select>
-        <Tabs value={type === "all" ? "all" : "filtered"} className="hidden" />
+      {/* Table Container enclosing Header Filters, Table, and Footer Pagination */}
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        {/* Header Filter Section inside table container */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card p-3 sm:p-4">
+          {/* Search Input on the Left */}
+          <Search
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            containerClassName="flex-1 min-w-[240px] h-9"
+          />
 
-        <p className="ml-auto text-xs text-muted-foreground">
-          {filtered.length} of {items.length} events · retention 30 days
-        </p>
-      </div>
+          {/* Filter Dropdowns & Date Range on the Right */}
+          <div className="flex flex-wrap items-center gap-2">
+            <SelectInput
+              datalist={roomOptions}
+              value={room}
+              onChange={(val) => {
+                setRoom(val ?? "all");
+                setPage(1);
+              }}
+              containerClassName="w-36 sm:w-40"
+              hideClear
+            />
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+            <SelectInput
+              datalist={typeOptions}
+              value={type}
+              onChange={(val) => {
+                setType(val ?? "all");
+                setPage(1);
+              }}
+              containerClassName="w-40 sm:w-44"
+              hideClear
+            />
+
+            <SelectInput
+              datalist={statusOptions}
+              value={status}
+              onChange={(val) => {
+                setStatus(val ?? "all");
+                setPage(1);
+              }}
+              containerClassName="w-36 sm:w-40"
+              hideClear
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 gap-1.5 bg-background text-xs font-normal text-muted-foreground"
+              onClick={() => toast.info("Date range filter: showing all available events")}
+            >
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>dd/mm/yyyy - dd/mm/yyyy</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Table */}
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12 pl-4">Type</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Room / Camera</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead>Snapshot</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="pr-4 text-right">Actions</TableHead>
+              <TableHead className="w-24 pl-4">ACTION</TableHead>
+              <TableHead>
+                STATUS <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>
+                TYPE <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>
+                ROOM / CAMERA <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>
+                DATE & TIME <ChevronsUpDown className="inline ml-1 h-3 w-3 opacity-40" />
+              </TableHead>
+              <TableHead>SNAPSHOT</TableHead>
+              <TableHead className="pr-4 text-right">EVALUATION</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((e) => {
+            {paginated.map((e) => {
               const r = roomById(e.roomId);
               return (
                 <TableRow key={e.id} className="cursor-pointer" onClick={() => setSelected(e)}>
-                  <TableCell className="pl-4">
-                    <TypeIcon type={e.type} />
+                  {/* Action buttons (matching screenshot outline icon buttons) */}
+                  <TableCell className="pl-4" onClick={(ev) => ev.stopPropagation()}>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="iconView"
+                        size="iconS"
+                        onClick={() => setSelected(e)}
+                        title="View details"
+                      >
+                        <Eye className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="icon"
+                        intent="primary"
+                        size="iconS"
+                        className="w-8 h-8 border-gray-200 dark:border-gray-600"
+                        onClick={() => handleExport(e)}
+                        title="Export clip"
+                      >
+                        <Download className="size-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
+
+                  {/* Status Badge */}
                   <TableCell>
-                    <p className="text-sm font-medium">{eventTypeLabel[e.type]}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground">{e.id}</p>
+                    <span className={statusPillClass[e.status]}>
+                      {eventStatusLabel[e.status]}
+                    </span>
                   </TableCell>
+
+                  {/* Type (merged with Event Title & ID) */}
                   <TableCell>
-                    <p className="text-sm">{r?.name}</p>
+                    <div className="flex items-center gap-2.5">
+                      <TypeIcon type={e.type} />
+                      <div>
+                        <p className="text-sm font-medium">{eventTypeLabel[e.type]}</p>
+                        <p className="font-mono text-[11px] text-muted-foreground">{e.id}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+
+                  {/* Room / Camera */}
+                  <TableCell>
+                    <p className="text-sm">{r?.name ?? "—"}</p>
                     <p className="font-mono text-[11px] text-muted-foreground">{e.camera}</p>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{e.at}</TableCell>
+
+                  {/* Time */}
+                  <TableCell className="font-mono text-xs text-muted-foreground">{e.at}</TableCell>
+
+                  {/* Snapshot */}
                   <TableCell>
                     {r?.image ? (
                       <img
@@ -198,57 +325,68 @@ function EventsPage() {
                         loading="lazy"
                         width={80}
                         height={45}
-                        className="h-10 w-20 rounded object-cover"
+                        className="h-9 w-16 rounded object-cover"
                       />
                     ) : (
                       <span className="font-mono text-[10px] text-muted-foreground">no media</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusClass[e.status]}>
-                      {eventStatusLabel[e.status]}
-                    </Badge>
-                  </TableCell>
+
+                  {/* Evaluation Actions */}
                   <TableCell className="pr-4 text-right" onClick={(ev) => ev.stopPropagation()}>
-                    {e.status === "unacknowledged" && (
+                    <div className="flex items-center justify-end gap-1">
+                      {e.status === "unacknowledged" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => setStatusFor(e.id, "acknowledged", "Acknowledged")}
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" /> Ack
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mr-1 h-7"
-                        onClick={() => setStatusFor(e.id, "acknowledged", "Acknowledged")}
+                        className="h-7 text-xs"
+                        onClick={() => setStatusFor(e.id, "true-alarm", "True Alarm")}
+                        title="Mark as True Alarm"
                       >
-                        <Check className="h-3.5 w-3.5" /> Acknowledge
+                        <ThumbsUp className="h-3.5 w-3.5 text-destructive" />
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mr-1 h-7"
-                      onClick={() => setStatusFor(e.id, "true-alarm", "True Alarm")}
-                    >
-                      <ThumbsUp className="h-3.5 w-3.5" /> True
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7"
-                      onClick={() => setStatusFor(e.id, "false-alarm", "False Alarm")}
-                    >
-                      <ThumbsDown className="h-3.5 w-3.5" /> False
-                    </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => setStatusFor(e.id, "false-alarm", "False Alarm")}
+                        title="Mark as False Alarm"
+                      >
+                        <ThumbsDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
             })}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                  No events match the current filters.
+                <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                  No events match the current search or filters.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
+        {/* Footer Pagination matching screenshot */}
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="border-t bg-card"
+        />
       </div>
 
       {/* Detail dialog */}
@@ -277,9 +415,9 @@ function EventsPage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className={statusClass[selected.status]}>
+                <span className={statusPillClass[selected.status]}>
                   {eventStatusLabel[selected.status]}
-                </Badge>
+                </span>
                 {selected.confidence !== undefined && (
                   <Badge variant="secondary">AI confidence {(selected.confidence * 100).toFixed(0)}%</Badge>
                 )}
@@ -298,20 +436,20 @@ function EventsPage() {
                     variant="outline"
                     onClick={() => setStatusFor(selected.id, "true-alarm", "True Alarm")}
                   >
-                    <ThumbsUp className="h-4 w-4" /> True Alarm
+                    <ThumbsUp className="mr-1.5 h-4 w-4 text-destructive" /> True Alarm
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setStatusFor(selected.id, "false-alarm", "False Alarm")}
                   >
-                    <ThumbsDown className="h-4 w-4" /> False Alarm
+                    <ThumbsDown className="mr-1.5 h-4 w-4" /> False Alarm
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => setStatusFor(selected.id, "acknowledged", "Acknowledged")}
                   >
-                    <Check className="h-4 w-4" /> Acknowledge
+                    <Check className="mr-1.5 h-4 w-4" /> Acknowledge
                   </Button>
                 </div>
               )}
